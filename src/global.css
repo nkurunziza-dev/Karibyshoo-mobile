@@ -1,44 +1,129 @@
-:root {
-  --font-display:
-    Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
-    Segoe UI Symbol, Noto Color Emoji;
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
-  --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
-  --font-serif: Georgia, 'Times New Roman', serif;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
 
-  --color-primary: #5a3c9a;
-  --color-primary-strong: #4a2f83;
-  --color-primary-soft: #f2ebff;
-  --color-surface: #f4eef9;
-  --color-surface-strong: #f6f2fb;
-  --color-card: #f5f5f7;
-  --color-border: #d8d7df;
-  --color-text: #2c2c32;
-  --color-text-secondary: #6d6b77;
-  --color-text-muted: #8d8b96;
-  --color-white: #ffffff;
-  --color-error: #d95a5a;
-  --color-success: #2c9e76;
-  --color-soft-shadow: rgba(90, 60, 154, 0.12);
+@import "nativewind/theme";
 
+
+/* TAILWIND V4 CONFIGURATION & DESIGN TOKENS */
+@theme {
+  /* ---------- Brand ---------- */
+  --color-primary: #4B2E9E;        /* deep purple */
+  --color-primary-dark: #3B2280;   /* pressed state */
+  --color-primary-light: #EDE9FE;  /* lavender header gradient */
+  --color-primary-tint: #F5F3FF;   /* faint card tint */
+
+  /* ---------- Text ---------- */
+  --color-text-primary: #1E293B;   /* headings */
+  --color-text-secondary: #64748B; /* body copy, labels */
+  --color-text-muted: #94A3B8;     /* placeholders */
+  --color-text-inverse: #FFFFFF;   /* text on primary buttons */
+  --color-link: #4B2E9E;           /* text links */
+
+  /* ---------- Surfaces ---------- */
+  --color-background: #FFFFFF;
+  --color-surface: #FFFFFF;        /* cards, sheets */
+  --color-surface-muted: #F8FAFC;  /* disabled fields */
+  --color-border: #E2E8F0;         /* input borders */
+  --color-border-strong: #CBD5E1;
+
+  /* ---------- Status pills ---------- */
+  --color-success: #DCFCE7;
+  --color-success-text: #16A34A;
+  --color-warning: #FEF3C7;
+  --color-warning-text: #D97706;
+  --color-danger: #FEE2E2;
+  --color-danger-text: #DC2626;
+  --color-info: #EDE9FE;
+  --color-info-text: #4B2E9E;
+  --color-ongoing: #DCFCE7;
+  --color-ongoing-text: #16A34A;
+  --color-upcoming: #FEF3C7;
+  --color-upcoming-text: #D97706;
+  --color-completed: #FEE2E2;
+  --color-completed-text: #DC2626;
+
+  /* ---------- Stat card icon chips ---------- */
+  --color-chip-green: #DCFCE7;   --color-chip-green-icon: #16A34A;
+  --color-chip-amber: #FEF3C7;   --color-chip-amber-icon: #D97706;
+  --color-chip-blue: #E0E7FF;    --color-chip-blue-icon: #4338CA;
+  --color-chip-red: #FEE2E2;     --color-chip-red-icon: #DC2626;
+
+  /* ---------- Radius & spacing ---------- */
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 24px;
+  --spacing-6: 32px;
 
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
+  /* ---------- Typography ---------- */
+  /* NOTE: must be --text-* (not --font-size-*) for Tailwind v4 to emit text-h1, text-h2, etc. */
+  --text-h1: 24px;
+  --text-h2: 20px;
+  --text-body: 15px;
+  --text-label: 14px;
+  --text-caption: 12px;
+  --font-weight-bold: 700;
+  --font-weight-semibold: 600;
+  --font-weight-regular: 400;
+}
 
-  --font-size-xs: 12px;
-  --font-size-sm: 14px;
-  --font-size-md: 16px;
-  --font-size-lg: 20px;
-  --font-size-xl: 28px;
-  --font-size-2xl: 32px;
+/* 3. COMPONENT STYLES */
+@utility btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-4);
+  font-weight: var(--font-weight-semibold);
+}
+
+@utility btn-secondary {
+  background-color: transparent;
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-4);
+  font-weight: var(--font-weight-semibold);
+}
+
+@utility input {
+  background-color: var(--color-surface);
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  /* physical properties — safer than padding-block/inline under NativeWind's CSS interop */
+  padding-top: var(--spacing-3);
+  padding-bottom: var(--spacing-3);
+  padding-left: var(--spacing-4);
+  padding-right: var(--spacing-4);
+  color: var(--color-text-primary);
+  font-size: var(--text-body);
+}
+
+@utility card {
+  background-color: var(--color-surface);
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+}
+
+@utility status-pill {
+  border-radius: var(--radius-full);
+  padding-top: var(--spacing-1);
+  padding-bottom: var(--spacing-1);
+  padding-left: var(--spacing-3);
+  padding-right: var(--spacing-3);
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-semibold);
+  align-self: flex-start;
 }

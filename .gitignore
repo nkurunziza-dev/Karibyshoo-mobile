@@ -3,6 +3,11 @@
 # dependencies
 node_modules/
 
+# reference images for mobile screens
+Mobile-screens-ref/
+# reference structure for mobile app
+karibyshoo-mobile-structure-final_1.md
+
 # Expo
 .expo/
 dist/

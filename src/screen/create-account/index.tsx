@@ -43,7 +43,10 @@ export default function CreateAccountChooserScreen() {
         <Pressable
           style={styles.primaryButton}
           onPress={() => {
-            const route = selectedType === 'company' ? '/company-account' : '/individual-account';
+            const route =
+            selectedType === 'company'
+            ? '/create-account/company'
+            : '/create-account/individual';
             router.push(route as any);
           }}
         >

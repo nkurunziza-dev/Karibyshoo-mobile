@@ -1,4 +1,4 @@
-import LoginScreen from '@/screens/login';
+import LoginScreen from '@/screen/login';
 
 export default function LoginRoute() {
   return <LoginScreen />;

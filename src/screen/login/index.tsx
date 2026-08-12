@@ -1,8 +1,8 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
 
 import Checkbox from '@/components/ui/Checkbox';
 import PasswordInput from '@/components/ui/PasswordInput';
@@ -22,13 +22,13 @@ export default function LoginScreen() {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormValues>({
-    defaultValues: {
-      identifier: '',
-      password: '',
-      rememberMe: false,
-    },
-    resolver: zodResolver(loginSchema),
+  } = useForm({
+  defaultValues: {
+    identifier: '',
+    password: '',
+    rememberMe: false,
+  },
+  resolver: zodResolver(loginSchema),
   });
 
   const handleSocialAuth = (provider: string) => {
@@ -57,7 +57,7 @@ export default function LoginScreen() {
             render={({ field: { onChange, onBlur, value } }) => (
               <TextField
                 label="Email / Phone Number / Username"
-                placeholder="Enter your email, phone, or username"
+                placeholder="Placeholder"
                 value={value}
                 onBlur={onBlur}
                 onChangeText={onChange}
@@ -112,7 +112,7 @@ export default function LoginScreen() {
               <Text style={styles.socialText}>G</Text>
             </Pressable>
             <Pressable style={styles.socialButton} onPress={() => handleSocialAuth('Meta')}>
-              <Text style={styles.socialText}>M</Text>
+              <Text style={styles.socialText}>◌</Text>
             </Pressable>
             <Pressable style={styles.socialButton} onPress={() => handleSocialAuth('X')}>
               <Text style={styles.socialText}>X</Text>
@@ -150,9 +150,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: designTokens.space5,
-    paddingTop: designTokens.space4,
+    paddingTop: 12,
     paddingBottom: designTokens.space4,
-    marginBottom: designTokens.space4,
+    marginBottom: designTokens.space2,
   },
   logoBadge: {
     width: 38,
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   },
   logoGlyph: {
     color: designTokens.white,
-    fontSize: designTokens.fontSizeLg,
+    fontSize: 18,
     fontWeight: '700',
   },
   brandText: {
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   card: {
-    backgroundColor: designTokens.surfaceAlt,
+    backgroundColor: '#f8f8fb',
     borderRadius: designTokens.radiusLg,
     paddingHorizontal: designTokens.space5,
     paddingTop: designTokens.space6,
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   },
   heading: {
     textAlign: 'center',
-    fontSize: designTokens.fontSizeXl2,
+    fontSize: 34,
     fontWeight: '700',
     color: designTokens.text,
     marginBottom: designTokens.space2,
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: designTokens.white,
-    fontSize: designTokens.fontSizeMd,
+    fontSize: designTokens.fontSizeLg,
     fontWeight: '700',
   },
   socialDividerWrap: {
@@ -238,6 +238,7 @@ const styles = StyleSheet.create({
   socialRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: designTokens.space2,
     marginBottom: designTokens.space4,
   },
   socialButton: {
@@ -249,10 +250,9 @@ const styles = StyleSheet.create({
     backgroundColor: designTokens.white,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: designTokens.space1,
   },
   socialText: {
-    fontSize: designTokens.fontSizeLg,
+    fontSize: 20,
     color: designTokens.text,
     fontWeight: '700',
   },
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: designTokens.space3,
+    marginTop: designTokens.space2,
   },
   footerText: {
     color: designTokens.textSecondary,

@@ -1,4 +1,4 @@
-import NewPasswordScreen from '@/screens/login/new-password';
+import NewPasswordScreen from '@/screen/login/new-password';
 
 export default function NewPasswordRoute() {
   return <NewPasswordScreen />;

@@ -1,8 +1,8 @@
-import { Link, router } from 'expo-router';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Link } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
 
 import Checkbox from '@/components/ui/Checkbox';
 import PasswordInput from '@/components/ui/PasswordInput';
@@ -22,13 +22,13 @@ export default function LoginScreen() {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormValues>({
-    defaultValues: {
-      identifier: '',
-      password: '',
-      rememberMe: false,
-    },
-    resolver: zodResolver(loginSchema),
+  } = useForm({
+  defaultValues: {
+    identifier: '',
+    password: '',
+    rememberMe: false,
+  },
+  resolver: zodResolver(loginSchema),
   });
 
   const handleSocialAuth = (provider: string) => {

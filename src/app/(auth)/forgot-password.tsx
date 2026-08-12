@@ -1,4 +1,4 @@
-import ForgotPasswordScreen from '@/components/forgot-password-screen';
+import ForgotPasswordScreen from '@/screen/login/forgot-password';
 
 export default function ForgotPasswordRoute() {
   return <ForgotPasswordScreen />;

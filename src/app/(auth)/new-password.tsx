@@ -1,4 +1,4 @@
-import NewPasswordScreen from '@/components/new-password-screen';
+import NewPasswordScreen from '@/screen/login/new-password';
 
 export default function NewPasswordRoute() {
   return <NewPasswordScreen />;

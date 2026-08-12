@@ -1,4 +1,4 @@
-import CheckEmailScreen from '@/components/check-email-screen';
+import CheckEmailScreen from '@/screen/login/check-email';
 
 export default function CheckEmailRoute() {
   return <CheckEmailScreen />;

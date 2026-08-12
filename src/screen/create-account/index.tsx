@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -42,7 +42,10 @@ export default function CreateAccountChooserScreen() {
 
         <Pressable
           style={styles.primaryButton}
-          onPress={() => router.push(selectedType === 'company' ? '/company-account' : '/individual-account')}
+          onPress={() => {
+            const route = selectedType === 'company' ? '/company-account' : '/individual-account';
+            router.push(route as any);
+          }}
         >
           <Text style={styles.primaryButtonText}>Create an Account</Text>
         </Pressable>

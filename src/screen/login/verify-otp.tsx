@@ -1,72 +1,64 @@
 import { Link, router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import AuthAPI, { getApiErrorMessage } from '@/authApi';
+import TextField from '@/components/ui/TextField';
 import { designTokens } from '@/constants/theme';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
-import useSignupFlowStore from '@/signupFlowStore';
-import TextField from '@/components/ui/TextField';
+import AuthAPI, { getApiErrorMessage } from '@/authApi';
+import authStore from '@/authStore';
 
-const verifyEmailSchema = z.object({
+const verifyOtpSchema = z.object({
   code: z.string().min(6, 'Enter the 6-digit code.'),
 });
 
-type VerifyEmailValues = z.infer<typeof verifyEmailSchema>;
+type VerifyOtpValues = z.infer<typeof verifyOtpSchema>;
 
-export default function VerifyEmailScreen() {
-  const params = useLocalSearchParams<{
-    mode?: string;
-    email?: string;
-    companyId?: string;
-    accountId?: string;
-    phoneNumber?: string;
-  }>();
-
+export default function VerifyOtpScreen() {
+  const params = useLocalSearchParams<{ phoneNumber?: string }>();
   const [apiError, setApiError] = useState<string | null>(null);
-  const mode = typeof params.mode === 'string' ? params.mode : 'individual';
-  const email = typeof params.email === 'string' ? params.email : '';
-  const phoneNumber = typeof params.phoneNumber === 'string' ? params.phoneNumber : '';
-  const companyId = typeof params.companyId === 'string' ? params.companyId : undefined;
-  const accountId = typeof params.accountId === 'string' ? params.accountId : undefined;
-
-  const { setCode, error, formattedTime, sendCode, verifyCode, resendCode } = useOtpVerification({
+  const { code, setCode, formattedTime, error, sendCode, resendCode, verifyCode, clearError } = useOtpVerification({
     expirySeconds: 90,
   });
+
+  const phoneNumber = typeof params.phoneNumber === 'string' ? params.phoneNumber : '';
 
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<VerifyEmailValues>({
+  } = useForm<VerifyOtpValues>({
     defaultValues: { code: '' },
-    resolver: zodResolver(verifyEmailSchema),
+    resolver: zodResolver(verifyOtpSchema),
   });
 
   useEffect(() => {
-    const destination = email || phoneNumber;
-    if (!destination) return;
-    void sendCode(destination);
-  }, [email, phoneNumber, sendCode]);
+    if (!phoneNumber) {
+      setApiError('Phone number is missing.');
+      return;
+    }
+
+    void sendCode(phoneNumber).catch(() => {
+      setApiError('Unable to send the OTP right now.');
+    });
+  }, [phoneNumber, sendCode]);
+
+  const bannerMessage = useMemo(() => apiError ?? error ?? null, [apiError, error]);
 
   const handleResend = async () => {
+    if (!phoneNumber) {
+      setApiError('Phone number is missing.');
+      return;
+    }
+
     try {
       setApiError(null);
-      if (mode === 'reset') {
-        await AuthAPI.requestPasswordReset({
-          emailAddress: email || undefined,
-          phoneNumber: phoneNumber || undefined,
-        });
-      } else {
-        await AuthAPI.resendOtp({
-          emailAddress: email || undefined,
-          companyId: companyId ? Number(companyId) : undefined,
-        });
-      }
-      await resendCode(email || phoneNumber || '');
+      clearError();
+      await AuthAPI.loginWithPhoneNumber({ phoneNumber });
+      await resendCode(phoneNumber);
     } catch (submitError) {
       setApiError(getApiErrorMessage(submitError));
     }
@@ -83,30 +75,24 @@ export default function VerifyEmailScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.heading}>
-            {mode === 'reset' ? 'Verify Reset Code' : 'Verify Email Address'}
-          </Text>
-          <Text style={styles.subheading}>
-            {mode === 'reset'
-              ? `Enter the six digits code sent to ${email || phoneNumber || 'your contact'}`
-              : `Enter the six digits code sent to ${email || 'your email address'}`}
-          </Text>
+          <Text style={styles.heading}>Verify Your Number</Text>
+          <Text style={styles.subheading}>Enter the six digits code sent to {phoneNumber || 'your phone number'}.</Text>
 
-          {apiError || error ? <Text style={styles.banner}>{apiError ?? error ?? ''}</Text> : null}
+          {bannerMessage ? <Text style={styles.banner}>{bannerMessage}</Text> : null}
 
           <Controller
             control={control}
             name="code"
             render={({ field: { onChange, onBlur, value } }) => (
               <TextField
-                label="Code"
-                placeholder="Enter verification code here"
+                label="Verification code"
+                placeholder="Enter 6-digit code"
                 value={value}
                 onBlur={onBlur}
                 onChangeText={(text) => {
-                  const digits = text.replace(/\D/g, '').slice(0, 6);
-                  onChange(digits);
-                  setCode(digits);
+                  const normalized = text.replace(/\D/g, '').slice(0, 6);
+                  onChange(normalized);
+                  setCode(normalized);
                   if (apiError) setApiError(null);
                 }}
                 keyboardType="number-pad"
@@ -118,73 +104,41 @@ export default function VerifyEmailScreen() {
           />
 
           <Text style={styles.metaText}>
-            <Text style={styles.inlineLink} onPress={handleResend}>Didn&apos;t get code?</Text>
-            <Text> Resend</Text>
+            <Text style={styles.inlineLink} onPress={handleResend}>Resend</Text>
+            <Text> code in {formattedTime}</Text>
           </Text>
-
-          <Text style={styles.timerText}>Code expires in {formattedTime}</Text>
 
           <Pressable
             style={styles.primaryButton}
             onPress={handleSubmit(async (values) => {
-              const otp = values.code;
-              if (!otp || otp.length !== 6) {
-                setApiError('Enter a valid 6-digit code.');
+              if (!phoneNumber) {
+                setApiError('Phone number is missing.');
+                return;
+              }
+
+              const isValid = await verifyCode(values.code);
+              if (!isValid) {
                 return;
               }
 
               try {
                 setApiError(null);
-                const isVerified = await verifyCode(otp);
-                if (!isVerified) {
+                clearError();
+                const response = await AuthAPI.validateLoginOtp({ phoneNumber, otp: values.code });
+                const accessToken = response.data.accessToken;
+                const refreshToken = response.data.refreshToken;
+                if (accessToken && refreshToken) {
+                  await authStore.setTokens({ accessToken, refreshToken });
+                  router.replace('/');
                   return;
                 }
-
-                if (mode === 'reset') {
-                  router.push({
-                    pathname: '/new-password',
-                    params: {
-                      email: email || '',
-                      phoneNumber: phoneNumber || '',
-                      otp,
-                    },
-                  });
-                  return;
-                }
-
-                await AuthAPI.verifyCompanyEmail({
-                  emailAddress: email || undefined,
-                  otp,
-                  companyId: companyId ? Number(companyId) : undefined,
-                });
-
-                if (mode === 'company') {
-                  router.push('/create-account/company-pending-approval');
-                  return;
-                }
-
-                const pendingPassword = useSignupFlowStore.getState().password;
-                if (!pendingPassword) {
-                  setApiError('No password was prepared for this account.');
-                  return;
-                }
-
-                await AuthAPI.createPassword({
-                  newPassword: pendingPassword,
-                  confirmPassword: pendingPassword,
-                  otp,
-                  companyId: companyId ? Number(companyId) : undefined,
-                  userId: accountId ? Number(accountId) : undefined,
-                });
-
-                useSignupFlowStore.getState().clear();
-                router.push({ pathname: '/login', params: { success: 'Account verified — please sign in' } });
+                setApiError('Login succeeded but no tokens were returned.');
               } catch (submitError) {
                 setApiError(getApiErrorMessage(submitError));
               }
             })}
           >
-            <Text style={styles.primaryButtonText}>Submit</Text>
+            <Text style={styles.primaryButtonText}>Verify</Text>
           </Pressable>
 
           <Link href="/login" asChild>
@@ -272,19 +226,13 @@ const styles = StyleSheet.create({
   },
   metaText: {
     textAlign: 'center',
-    marginTop: designTokens.space1,
     color: designTokens.text,
     fontSize: designTokens.fontSizeMd,
+    marginBottom: designTokens.space4,
   },
   inlineLink: {
     color: designTokens.primary,
     fontWeight: '700',
-  },
-  timerText: {
-    textAlign: 'center',
-    color: designTokens.textSecondary,
-    fontSize: designTokens.fontSizeMd,
-    marginBottom: designTokens.space4,
   },
   primaryButton: {
     backgroundColor: designTokens.primary,

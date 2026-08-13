@@ -1,12 +1,9 @@
-import { Link, useLocalSearchParams } from 'expo-router';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Link, router } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { designTokens } from '@/constants/theme';
 
-export default function CheckEmailScreen() {
-  const params = useLocalSearchParams<{ email?: string }>();
-  const email = typeof params.email === 'string' ? params.email : 'your email';
-
+export default function CompanyPendingApprovalScreen() {
   return (
     <View style={styles.shell}>
       <View style={styles.topBar}>
@@ -18,19 +15,22 @@ export default function CheckEmailScreen() {
 
       <View style={styles.card}>
         <View style={styles.iconWrap}>
-          <Text style={styles.mailIcon}>✉</Text>
+          <Text style={styles.iconText}>✓</Text>
         </View>
 
-        <Text style={styles.heading}>Check your Email</Text>
-        <Text style={styles.subheading}>We&apos;ve sent a verification code to {email}</Text>
+        <Text style={styles.heading}>Your company account is pending approval.</Text>
+        <Text style={styles.subheading}>You&apos;ll be notified once an admin reviews it.</Text>
 
-        <Pressable style={styles.primaryButton} onPress={() => void Linking.openURL('mailto:')}>
-          <Text style={styles.primaryButtonText}>Open Mail</Text>
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() => router.replace('/login')}
+        >
+          <Text style={styles.primaryButtonText}>Back to Login</Text>
         </Pressable>
 
         <Link href="/login" asChild>
           <Pressable>
-            <Text style={styles.backLink}>Back to Login</Text>
+            <Text style={styles.backLink}>Go to Login</Text>
           </Pressable>
         </Link>
       </View>
@@ -88,14 +88,14 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: designTokens.space4,
   },
-  mailIcon: {
+  iconText: {
     color: designTokens.white,
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '700',
   },
   heading: {
     textAlign: 'center',
-    fontSize: 36,
+    fontSize: 30,
     fontWeight: '700',
     color: designTokens.text,
     marginBottom: designTokens.space2,

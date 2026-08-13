@@ -1,9 +1,11 @@
-import { Link, router } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
+import AuthAPI, { getApiErrorMessage } from '@/authApi';
 import PasswordInput from '@/components/ui/PasswordInput';
 import { designTokens } from '@/constants/theme';
 
@@ -20,6 +22,9 @@ const newPasswordSchema = z
 type NewPasswordValues = z.infer<typeof newPasswordSchema>;
 
 export default function NewPasswordScreen() {
+  const params = useLocalSearchParams<{ email?: string; phoneNumber?: string; otp?: string }>();
+  const [apiError, setApiError] = useState<string | null>(null);
+
   const {
     control,
     handleSubmit,
@@ -45,6 +50,8 @@ export default function NewPasswordScreen() {
         <View style={styles.card}>
           <Text style={styles.heading}>Create a New Password</Text>
           <Text style={styles.subheading}>Enter a new password to secure your account</Text>
+
+          {apiError ? <Text style={styles.errorBanner}>{apiError}</Text> : null}
 
           <Controller
             control={control}
@@ -77,7 +84,29 @@ export default function NewPasswordScreen() {
             )}
           />
 
-          <Pressable style={styles.primaryButton} onPress={handleSubmit(() => router.push('/login'))}>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={handleSubmit(async (values) => {
+              try {
+                setApiError(null);
+                const email = typeof params.email === 'string' ? params.email : undefined;
+                const phoneNumber = typeof params.phoneNumber === 'string' ? params.phoneNumber : undefined;
+                const otp = typeof params.otp === 'string' ? params.otp : undefined;
+
+                await AuthAPI.confirmPasswordReset({
+                  emailAddress: email,
+                  phoneNumber,
+                  otp: otp ?? '',
+                  newPassword: values.password,
+                  confirmPassword: values.confirmPassword,
+                });
+
+                router.push({ pathname: '/login', params: { success: 'Password reset successful — please sign in' } });
+              } catch (error) {
+                setApiError(getApiErrorMessage(error));
+              }
+            })}
+          >
             <Text style={styles.primaryButtonText}>Submit</Text>
           </Pressable>
 
@@ -151,6 +180,15 @@ const styles = StyleSheet.create({
     fontSize: designTokens.fontSizeMd,
     lineHeight: 22,
     marginBottom: designTokens.space5,
+  },
+  errorBanner: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FCA5A5',
+    borderWidth: 1,
+    borderRadius: designTokens.radiusSm,
+    color: '#991B1B',
+    padding: designTokens.space3,
+    marginBottom: designTokens.space3,
   },
   fieldSpacing: {
     marginBottom: designTokens.space4,

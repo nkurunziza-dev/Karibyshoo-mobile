@@ -1,14 +1,17 @@
 import { Link, router } from 'expo-router';
+import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
+import AuthAPI, { getApiErrorMessage } from '@/authApi';
 import Checkbox from '@/components/ui/Checkbox';
 import PasswordInput from '@/components/ui/PasswordInput';
 import PhoneInput from '@/components/ui/PhoneInput';
 import TextField from '@/components/ui/TextField';
 import { designTokens } from '@/constants/theme';
+import useSignupFlowStore from '@/signupFlowStore';
 
 const individualSchema = z
   .object({
@@ -28,6 +31,8 @@ const individualSchema = z
 type IndividualFormValues = z.infer<typeof individualSchema>;
 
 export default function IndividualAccountScreen() {
+  const [apiError, setApiError] = useState<string | null>(null);
+
   const {
     control,
     handleSubmit,
@@ -58,6 +63,8 @@ export default function IndividualAccountScreen() {
         <View style={styles.card}>
           <Text style={styles.heading}>Create Your Individual Account</Text>
           <Text style={styles.subheading}>Register to track your visits and access seamless entry.</Text>
+
+          {apiError ? <Text style={styles.errorBanner}>{apiError}</Text> : null}
 
           <View style={styles.twoColumnRow}>
             <Controller
@@ -171,7 +178,41 @@ export default function IndividualAccountScreen() {
             )}
           />
 
-          <Pressable style={styles.primaryButton} onPress={handleSubmit(() => router.push('/login'))}>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={handleSubmit(async (values) => {
+              try {
+                setApiError(null);
+
+                const payload = {
+                  emailAddress: values.email.trim(),
+                  firstName: values.firstName.trim(),
+                  lastName: values.lastName.trim(),
+                  phoneNumber: values.phone.trim(),
+                  gender: 'OTHER' as const,
+                };
+
+                const response = await AuthAPI.createVisitor(payload);
+                const id = (response.data as { id?: number | string; accountId?: number | string; userId?: number | string } | undefined)?.id;
+
+                useSignupFlowStore.getState().setPending({
+                  email: payload.emailAddress,
+                  accountId: id,
+                  password: values.password,
+                });
+
+                router.push({
+                  pathname: '/verify-email',
+                  params: {
+                    email: payload.emailAddress,
+                    accountId: id ? String(id) : undefined,
+                  },
+                });
+              } catch (error) {
+                setApiError(getApiErrorMessage(error));
+              }
+            })}
+          >
             <Text style={styles.primaryButtonText}>Create an Account</Text>
           </Pressable>
 
@@ -266,6 +307,15 @@ const styles = StyleSheet.create({
     fontSize: designTokens.fontSizeMd,
     lineHeight: 22,
     marginBottom: designTokens.space5,
+  },
+  errorBanner: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FCA5A5',
+    borderWidth: 1,
+    borderRadius: designTokens.radiusSm,
+    color: '#991B1B',
+    padding: designTokens.space3,
+    marginBottom: designTokens.space3,
   },
   fieldSpacing: {
     marginBottom: designTokens.space3,

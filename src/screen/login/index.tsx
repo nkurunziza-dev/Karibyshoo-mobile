@@ -1,13 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
+import React from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
+import { AuthAPI, getAuthErrorMessage } from '@/api/auth';
 import Checkbox from '@/components/ui/Checkbox';
 import PasswordInput from '@/components/ui/PasswordInput';
 import TextField from '@/components/ui/TextField';
 import { designTokens } from '@/constants/theme';
+import { useAuthStore } from '@/store/auth';
 
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Enter your email, phone, or username.'),
@@ -17,22 +20,65 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+const looksLikePhoneNumber = (value: string) => /^\+?[0-9][0-9\s-]*$/.test(value.trim()) && value.replace(/\D/g, '').length >= 8;
+
 export default function LoginScreen() {
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm({
-  defaultValues: {
-    identifier: '',
-    password: '',
-    rememberMe: false,
-  },
-  resolver: zodResolver(loginSchema),
+  } = useForm<LoginFormValues>({
+    defaultValues: {
+      identifier: '',
+      password: '',
+      rememberMe: false,
+    },
+    resolver: zodResolver(loginSchema),
   });
 
-  const handleSocialAuth = (provider: string) => {
-    console.log(`${provider} auth placeholder`);
+  const [apiError, setApiError] = React.useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const handleSubmitLogin = handleSubmit(async (values) => {
+    const identifier = values.identifier.trim();
+    setApiError(null);
+    setIsSubmitting(true);
+
+    try {
+      if (looksLikePhoneNumber(identifier)) {
+        const response = await AuthAPI.loginWithPhoneNumber({ phoneNumber: identifier });
+        const message = response.data?.message ?? 'OTP sent to your phone number.';
+
+        if (response.data?.status === 'success') {
+          router.push({ pathname: '/verify-otp', params: { phoneNumber: identifier } });
+          return;
+        }
+
+        setApiError(message);
+        return;
+      }
+
+      const response = await AuthAPI.login({
+        emailAddress: identifier,
+        password: values.password,
+        rememberMe: values.rememberMe,
+      });
+
+      await useAuthStore.getState().setTokens({
+        accessToken: response.data?.accessToken ?? null,
+        refreshToken: response.data?.refreshToken ?? null,
+      });
+
+      router.replace('/');
+    } catch (error) {
+      setApiError(getAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  });
+
+  const handleSocialAuth = (_provider: string) => {
+    return undefined;
   };
 
   return (
@@ -50,6 +96,8 @@ export default function LoginScreen() {
           <Text style={styles.subheading}>
             Set up your organization&apos;s visitor and meeting management in minutes.
           </Text>
+
+          {apiError ? <Text style={styles.errorBanner}>{apiError}</Text> : null}
 
           <Controller
             control={control}
@@ -97,8 +145,8 @@ export default function LoginScreen() {
             </Link>
           </View>
 
-          <Pressable style={styles.primaryButton} onPress={handleSubmit(() => undefined)}>
-            <Text style={styles.primaryButtonText}>Sign In</Text>
+          <Pressable style={styles.primaryButton} onPress={handleSubmitLogin} disabled={isSubmitting}>
+            <Text style={styles.primaryButtonText}>{isSubmitting ? 'Signing in...' : 'Sign In'}</Text>
           </Pressable>
 
           <View style={styles.socialDividerWrap}>
@@ -195,6 +243,14 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: designTokens.space6,
   },
+  errorBanner: {
+    backgroundColor: '#FDE8E8',
+    color: '#B42318',
+    borderRadius: designTokens.radiusMd,
+    paddingHorizontal: designTokens.space3,
+    paddingVertical: designTokens.space2,
+    marginBottom: designTokens.space4,
+  },
   inlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -218,7 +274,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: designTokens.white,
     fontSize: designTokens.fontSizeLg,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   socialDividerWrap: {
     flexDirection: 'row',
@@ -228,48 +284,46 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: designTokens.border,
+    backgroundColor: '#d9d9dd',
   },
   dividerText: {
-    marginHorizontal: designTokens.space2,
+    marginHorizontal: designTokens.space3,
     color: designTokens.textSecondary,
     fontSize: designTokens.fontSizeSm,
   },
   socialRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: designTokens.space2,
-    marginBottom: designTokens.space4,
+    justifyContent: 'center',
+    gap: designTokens.space3,
+    marginBottom: designTokens.space5,
   },
   socialButton: {
-    flex: 1,
+    width: 48,
     height: 48,
     borderRadius: designTokens.radiusMd,
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: designTokens.border,
-    backgroundColor: designTokens.white,
+    borderColor: '#e5e7eb',
     justifyContent: 'center',
     alignItems: 'center',
   },
   socialText: {
-    fontSize: 20,
     color: designTokens.text,
+    fontSize: designTokens.fontSizeLg,
     fontWeight: '700',
   },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: designTokens.space2,
+    gap: designTokens.space2,
   },
   footerText: {
     color: designTokens.textSecondary,
-    fontSize: designTokens.fontSizeMd,
+    fontSize: designTokens.fontSizeSm,
   },
   footerLink: {
     color: designTokens.primary,
-    fontSize: designTokens.fontSizeMd,
+    fontSize: designTokens.fontSizeSm,
     fontWeight: '700',
-    marginLeft: designTokens.space1,
   },
 });

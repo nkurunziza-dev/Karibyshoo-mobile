@@ -1,10 +1,11 @@
-import { Link, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { Link, router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
+import { AuthAPI, getAuthErrorMessage } from '@/api/auth';
 import TextField from '@/components/ui/TextField';
 import { designTokens } from '@/constants/theme';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
@@ -16,9 +17,13 @@ const verifyEmailSchema = z.object({
 type VerifyEmailValues = z.infer<typeof verifyEmailSchema>;
 
 export default function VerifyEmailScreen() {
-  const { code, setCode, status, error, formattedTime, sendCode, verifyCode, resendCode } =
-    useOtpVerification({ expirySeconds: 38 });
-  const [submittedAt, setSubmittedAt] = useState(0);
+  const params = useLocalSearchParams<{ email?: string; companyId?: string; accountId?: string; mode?: string; }>();
+  const email = useMemo(() => (typeof params.email === 'string' ? params.email : ''), [params.email]);
+  const companyId = useMemo(() => (typeof params.companyId === 'string' ? params.companyId : ''), [params.companyId]);
+  const accountId = useMemo(() => (typeof params.accountId === 'string' ? params.accountId : ''), [params.accountId]);
+
+  const { code, setCode, status, error, formattedTime, sendCode, verifyCode, resendCode } = useOtpVerification({ expirySeconds: 180 });
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const {
     control,
@@ -30,8 +35,60 @@ export default function VerifyEmailScreen() {
   });
 
   useEffect(() => {
-    void sendCode('example@gmail.com');
-  }, [sendCode]);
+    if (!email) {
+      router.replace('/login');
+      return;
+    }
+
+    void sendCode(email);
+  }, [email, sendCode]);
+
+  const handleResend = async () => {
+    try {
+      await AuthAPI.resendOtp({ emailAddress: email, companyId: companyId || undefined });
+      await resendCode(email);
+      setApiError(null);
+    } catch (error) {
+      setApiError(getAuthErrorMessage(error));
+    }
+  };
+
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      const isVerified = await verifyCode(values.code);
+      if (!isVerified) {
+        return;
+      }
+
+      await AuthAPI.verifyCompanyEmail({
+        emailAddress: email,
+        otp: values.code,
+        companyId: companyId || undefined,
+      });
+
+      if (companyId) {
+        router.replace('/create-account/company-pending-approval');
+        return;
+      }
+
+      if (accountId) {
+        router.push({
+          pathname: '/new-password',
+          params: {
+            email,
+            otp: values.code,
+            companyId: companyId || '',
+            accountId,
+          },
+        });
+        return;
+      }
+
+      router.replace('/login');
+    } catch (error) {
+      setApiError(getAuthErrorMessage(error));
+    }
+  });
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
@@ -45,7 +102,9 @@ export default function VerifyEmailScreen() {
 
         <View style={styles.card}>
           <Text style={styles.heading}>Verify Email Address</Text>
-          <Text style={styles.subheading}>Enter the six digits code sent to your email address example@gmail.com</Text>
+          <Text style={styles.subheading}>Enter the six-digit code sent to your email address {email || 'your inbox'}</Text>
+
+          {apiError ? <Text style={styles.errorBanner}>{apiError}</Text> : null}
 
           <Controller
             control={control}
@@ -70,7 +129,7 @@ export default function VerifyEmailScreen() {
           />
 
           <Text style={styles.metaText}>
-            <Text style={styles.inlineLink} onPress={() => void resendCode('example@gmail.com')}>
+            <Text style={styles.inlineLink} onPress={() => void handleResend()}>
               Didn&apos;t get code?
             </Text>
             <Text> Resend</Text>
@@ -78,15 +137,7 @@ export default function VerifyEmailScreen() {
 
           <Text style={styles.timerText}>Code expires in {formattedTime}</Text>
 
-          <Pressable
-            style={styles.primaryButton}
-            onPress={handleSubmit(async (values) => {
-              const isVerified = await verifyCode(values.code);
-              if (isVerified) {
-                router.push('/new-password');
-              }
-            })}
-          >
+          <Pressable style={styles.primaryButton} onPress={onSubmit}>
             <Text style={styles.primaryButtonText}>Submit</Text>
           </Pressable>
 
@@ -199,5 +250,13 @@ const styles = StyleSheet.create({
     fontSize: designTokens.fontSizeMd,
     textAlign: 'center',
     fontWeight: '600',
+  },
+  errorBanner: {
+    backgroundColor: '#FDE8E8',
+    color: '#B42318',
+    borderRadius: designTokens.radiusMd,
+    paddingHorizontal: designTokens.space3,
+    paddingVertical: designTokens.space2,
+    marginBottom: designTokens.space4,
   },
 });

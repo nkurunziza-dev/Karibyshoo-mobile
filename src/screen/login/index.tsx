@@ -1,39 +1,95 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link } from 'expo-router';
-import { Controller, useForm } from 'react-hook-form';
+import { Link, router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
+import AuthAPI, { getApiErrorMessage } from '@/authApi';
+import authStore from '@/authStore';
 import Checkbox from '@/components/ui/Checkbox';
 import PasswordInput from '@/components/ui/PasswordInput';
 import TextField from '@/components/ui/TextField';
 import { designTokens } from '@/constants/theme';
 
-const loginSchema = z.object({
-  identifier: z.string().min(1, 'Enter your email, phone, or username.'),
-  password: z.string().min(8, 'Password must be at least 8 characters.'),
-  rememberMe: z.boolean().default(false),
-});
+const isPhoneIdentifier = (value: string) => value.trim().startsWith('+') || /^\d+$/.test(value.trim());
+
+const loginSchema = z
+  .object({
+    identifier: z.string().min(1, 'Enter your email, phone, or username.'),
+    password: z.string().optional(),
+    rememberMe: z.boolean().default(false),
+  })
+  .refine(
+    (values) => {
+      if (isPhoneIdentifier(values.identifier)) {
+        return true;
+      }
+      return !!values.password && values.password.length >= 8;
+    },
+    {
+      message: 'Password must be at least 8 characters.',
+      path: ['password'],
+    },
+  );
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginScreen() {
+  const params = useLocalSearchParams<{ success?: string }>();
+  const [apiError, setApiError] = useState<string | null>(null);
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm({
-  defaultValues: {
-    identifier: '',
-    password: '',
-    rememberMe: false,
-  },
-  resolver: zodResolver(loginSchema),
+  } = useForm<LoginFormValues>({
+    defaultValues: {
+      identifier: '',
+      password: '',
+      rememberMe: false,
+    },
+    resolver: zodResolver(loginSchema) as any,
   });
 
+  const identifierValue = useWatch({ control, name: 'identifier' });
+  const isPhoneLogin = isPhoneIdentifier(identifierValue ?? '');
+  const successMessage = typeof params.success === 'string' ? params.success : null;
+
   const handleSocialAuth = (provider: string) => {
-    console.log(`${provider} auth placeholder`);
+    void provider;
   };
+
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      setApiError(null);
+
+      const normalizedIdentifier = values.identifier.trim();
+      if (isPhoneLogin) {
+        await AuthAPI.loginWithPhoneNumber({ phoneNumber: normalizedIdentifier });
+        router.push({ pathname: '/verify-otp', params: { phoneNumber: normalizedIdentifier } } as any);
+        return;
+      }
+
+      const password = values.password ?? '';
+      const response = await AuthAPI.login({
+        emailAddress: normalizedIdentifier,
+        password,
+        rememberMe: values.rememberMe,
+      });
+
+      const accessToken = response.data.accessToken;
+      const refreshToken = response.data.refreshToken;
+      if (!accessToken || !refreshToken) {
+        setApiError('Login succeeded but no tokens were returned.');
+        return;
+      }
+
+      await authStore.getState().setTokens({ accessToken, refreshToken });
+      router.replace('/' as any);
+    } catch (error) {
+      setApiError(getApiErrorMessage(error));
+    }
+  });
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
@@ -51,6 +107,9 @@ export default function LoginScreen() {
             Set up your organization&apos;s visitor and meeting management in minutes.
           </Text>
 
+          {successMessage ? <Text style={styles.successBanner}>{successMessage}</Text> : null}
+          {apiError ? <Text style={styles.errorBanner}>{apiError}</Text> : null}
+
           <Controller
             control={control}
             name="identifier"
@@ -67,20 +126,22 @@ export default function LoginScreen() {
             )}
           />
 
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <PasswordInput
-                label="Password"
-                placeholder="********"
-                value={value}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                error={errors.password?.message}
-              />
-            )}
-          />
+          {!isPhoneLogin ? (
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <PasswordInput
+                  label="Password"
+                  placeholder="********"
+                  value={value}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  error={errors.password?.message}
+                />
+              )}
+            />
+          ) : null}
 
           <View style={styles.inlineRow}>
             <Controller
@@ -97,7 +158,7 @@ export default function LoginScreen() {
             </Link>
           </View>
 
-          <Pressable style={styles.primaryButton} onPress={handleSubmit(() => undefined)}>
+          <Pressable style={styles.primaryButton} onPress={onSubmit}>
             <Text style={styles.primaryButtonText}>Sign In</Text>
           </Pressable>
 
@@ -194,6 +255,24 @@ const styles = StyleSheet.create({
     fontSize: designTokens.fontSizeMd,
     lineHeight: 22,
     marginBottom: designTokens.space6,
+  },
+  successBanner: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
+    borderWidth: 1,
+    borderRadius: designTokens.radiusSm,
+    color: '#166534',
+    padding: designTokens.space3,
+    marginBottom: designTokens.space3,
+  },
+  errorBanner: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FCA5A5',
+    borderWidth: 1,
+    borderRadius: designTokens.radiusSm,
+    color: '#991B1B',
+    padding: designTokens.space3,
+    marginBottom: designTokens.space3,
   },
   inlineRow: {
     flexDirection: 'row',

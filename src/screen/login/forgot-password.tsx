@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
+import AuthAPI, { getApiErrorMessage } from '@/authApi';
 import TextField from '@/components/ui/TextField';
 import { designTokens } from '@/constants/theme';
 
@@ -30,6 +31,7 @@ type ForgotPasswordValues = { contact: string };
 
 export default function ForgotPasswordScreen() {
   const [usePhone, setUsePhone] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const schema = createForgotPasswordSchema(usePhone);
 
   const { control, handleSubmit, formState: { errors } } = useForm<ForgotPasswordValues>({
@@ -50,8 +52,10 @@ export default function ForgotPasswordScreen() {
         <View style={styles.card}>
           <Text style={styles.heading}>Forgot your password?</Text>
           <Text style={styles.subheading}>
-            Don&apos;t worry, we&apos;ve all been there! Just drop your email below, and we&apos;ll send you a link to help reset your password
+            Don&apos;t worry, we&apos;ve all been there! Just drop your email below, and we&apos;ll send you a link to help reset your password.
           </Text>
+
+          {apiError ? <Text style={styles.errorBanner}>{apiError}</Text> : null}
 
           <Controller
             control={control}
@@ -75,7 +79,21 @@ export default function ForgotPasswordScreen() {
             <Text style={styles.toggleText}>{usePhone ? 'Use Email' : 'Use Phone'}</Text>
           </Pressable>
 
-          <Pressable style={styles.primaryButton} onPress={handleSubmit(() => router.push('/check-email'))}>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={handleSubmit(async (values) => {
+              try {
+                setApiError(null);
+                const payload = usePhone
+                  ? { phoneNumber: values.contact.trim() }
+                  : { emailAddress: values.contact.trim() };
+                await AuthAPI.requestPasswordReset(payload);
+                router.push({ pathname: '/check-email', params: { email: usePhone ? '' : values.contact.trim() } });
+              } catch (error) {
+                setApiError(getApiErrorMessage(error));
+              }
+            })}
+          >
             <Text style={styles.primaryButtonText}>Submit</Text>
           </Pressable>
 
@@ -149,6 +167,15 @@ const styles = StyleSheet.create({
     fontSize: designTokens.fontSizeMd,
     lineHeight: 24,
     marginBottom: designTokens.space5,
+  },
+  errorBanner: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FCA5A5',
+    borderWidth: 1,
+    borderRadius: designTokens.radiusSm,
+    color: '#991B1B',
+    padding: designTokens.space3,
+    marginBottom: designTokens.space3,
   },
   fieldSpacing: {
     marginBottom: designTokens.space4,

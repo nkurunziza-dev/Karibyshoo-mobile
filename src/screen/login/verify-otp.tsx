@@ -128,8 +128,8 @@ export default function VerifyOtpScreen() {
                 const accessToken = response.data.accessToken;
                 const refreshToken = response.data.refreshToken;
                 if (accessToken && refreshToken) {
-                  await authStore.setTokens({ accessToken, refreshToken });
-                  router.replace('/');
+                  await authStore.getState().setTokens({ accessToken, refreshToken });
+                  router.replace('/' as any);
                   return;
                 }
                 setApiError('Login succeeded but no tokens were returned.');

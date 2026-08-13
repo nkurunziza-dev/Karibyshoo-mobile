@@ -48,7 +48,7 @@ export default function LoginScreen() {
       password: '',
       rememberMe: false,
     },
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(loginSchema) as any,
   });
 
   const identifierValue = useWatch({ control, name: 'identifier' });
@@ -66,7 +66,7 @@ export default function LoginScreen() {
       const normalizedIdentifier = values.identifier.trim();
       if (isPhoneLogin) {
         await AuthAPI.loginWithPhoneNumber({ phoneNumber: normalizedIdentifier });
-        router.push({ pathname: '/verify-otp', params: { phoneNumber: normalizedIdentifier } });
+        router.push({ pathname: '/verify-otp', params: { phoneNumber: normalizedIdentifier } } as any);
         return;
       }
 
@@ -84,8 +84,8 @@ export default function LoginScreen() {
         return;
       }
 
-      await authStore.setTokens({ accessToken, refreshToken });
-      router.replace('/');
+      await authStore.getState().setTokens({ accessToken, refreshToken });
+      router.replace('/' as any);
     } catch (error) {
       setApiError(getApiErrorMessage(error));
     }

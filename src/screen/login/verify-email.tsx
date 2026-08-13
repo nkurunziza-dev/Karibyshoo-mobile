@@ -159,7 +159,7 @@ export default function VerifyEmailScreen() {
                 });
 
                 if (mode === 'company') {
-                  router.push('/create-account/company-pending-approval');
+                  router.push('/create-account/company-pending-approval' as any);
                   return;
                 }
 
@@ -178,7 +178,7 @@ export default function VerifyEmailScreen() {
                 });
 
                 useSignupFlowStore.getState().clear();
-                router.push({ pathname: '/login', params: { success: 'Account verified — please sign in' } });
+                router.push({ pathname: '/login', params: { success: 'Account verified — please sign in' } } as any);
               } catch (submitError) {
                 setApiError(getApiErrorMessage(submitError));
               }

@@ -1,14 +1,16 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, router } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
 
+import { AuthAPI, getAuthErrorMessage } from '@/api/auth';
 import Checkbox from '@/components/ui/Checkbox';
 import PasswordInput from '@/components/ui/PasswordInput';
 import PhoneInput from '@/components/ui/PhoneInput';
 import TextField from '@/components/ui/TextField';
 import { designTokens } from '@/constants/theme';
+import { useSignupFlowStore } from '@/store/signupFlow';
 
 const individualSchema = z
   .object({
@@ -43,6 +45,40 @@ export default function IndividualAccountScreen() {
       termsAccepted: false,
     },
     resolver: zodResolver(individualSchema),
+  });
+
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      const response = await AuthAPI.createVisitor({
+        firstName: values.firstName,
+        lastName: values.lastName,
+        emailAddress: values.email,
+        phoneNumber: values.phone.replace(/\D/g, ''),
+        gender: 'MALE',
+      });
+
+      const accountId = (response.data as any)?.id ?? (response.data as any)?.userId ?? null;
+
+      useSignupFlowStore.getState().setPending({
+        email: values.email,
+        accountId: accountId ?? '',
+        password: values.password,
+      });
+
+      router.push({
+        pathname: '/verify-email',
+        params: {
+          email: values.email,
+          accountId: accountId ? String(accountId) : '',
+        },
+      });
+    } catch (error) {
+      const message = getAuthErrorMessage(error);
+      // Inline banner handling remains in the screen as a future enhancement.
+      if (message) {
+        return;
+      }
+    }
   });
 
   return (
@@ -171,27 +207,9 @@ export default function IndividualAccountScreen() {
             )}
           />
 
-          <Pressable style={styles.primaryButton} onPress={handleSubmit(() => router.push('/login'))}>
+          <Pressable style={styles.primaryButton} onPress={onSubmit}>
             <Text style={styles.primaryButtonText}>Create an Account</Text>
           </Pressable>
-
-          <View style={styles.socialDividerWrap}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or sign up with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.socialRow}>
-            <Pressable style={styles.socialButton} onPress={() => undefined}>
-              <Text style={styles.socialText}>G</Text>
-            </Pressable>
-            <Pressable style={styles.socialButton} onPress={() => undefined}>
-              <Text style={styles.socialText}>◌</Text>
-            </Pressable>
-            <Pressable style={styles.socialButton} onPress={() => undefined}>
-              <Text style={styles.socialText}>X</Text>
-            </Pressable>
-          </View>
 
           <View style={styles.footerRow}>
             <Text style={styles.footerText}>Already have an account?</Text>
@@ -290,42 +308,6 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: designTokens.white,
     fontSize: designTokens.fontSizeLg,
-    fontWeight: '700',
-  },
-  socialDividerWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: designTokens.space4,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: designTokens.border,
-  },
-  dividerText: {
-    marginHorizontal: designTokens.space2,
-    color: designTokens.textSecondary,
-    fontSize: designTokens.fontSizeSm,
-  },
-  socialRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: designTokens.space2,
-    marginBottom: designTokens.space4,
-  },
-  socialButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: designTokens.radiusMd,
-    borderWidth: 1,
-    borderColor: designTokens.border,
-    backgroundColor: designTokens.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  socialText: {
-    fontSize: 20,
-    color: designTokens.text,
     fontWeight: '700',
   },
   footerRow: {
